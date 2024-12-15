@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>noVNC Remote Connection</title>
+    <style>
+        #vnc-canvas {
+            width: 800px;
+            height: 600px;
+            border: 1px solid #000;
+        }
+    </style>
+    <script src="../../../noVNC/core/rfb.js"></script>
+</head>
+<body>
+    <h1>noVNC Remote Connection</h1>
+    <div id="vnc-container">
+        <canvas id="vnc-canvas"></canvas>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            //const vncHost = "your.vnc.server.ip";  // 替换为您的 VNC 服务端 IP 地址
+            const vncHost = "192.168.1.102";  // 替换为您的 VNC 服务端 IP 地址
+            const vncPort = "5900";               // 替换为您的 VNC 服务端端口
+            const vncPassword = "";   // 替换为您的 VNC 密码
+
+            // 获取 canvas 元素
+            const canvas = document.getElementById('vnc-canvas');
+
+            // 初始化 RFB 实例
+            const rfb = new RFB(canvas, `wss://${vncHost}:${vncPort}`, {
+                credentials: { password: vncPassword },
+            });
+
+            // 添加事件监听器
+            rfb.addEventListener('connect', () => {
+                console.log('Connected to VNC server');
+            });
+
+            rfb.addEventListener('disconnect', () => {
+                console.log('Disconnected from VNC server');
+            });
+
+            // 设置缩放模式
+            rfb.scaleViewport = true;
+            rfb.resizeSession = true;
+        });
+    </script>
+</body>
+</html>
