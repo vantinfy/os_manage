@@ -35,7 +35,7 @@ func main() {
 	}()
 
 	<-quit
-	beforeQuit(controller.QuitWsAndVNC)
+	beforeQuit(controller.QuitVNCServer)
 }
 
 func beforeQuit(fns ...func()) {

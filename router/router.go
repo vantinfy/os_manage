@@ -27,7 +27,9 @@ func RouteGroups(router *gin.Engine) {
 	//router.GET("/capture/ws", controller.CaptureWSConnection)
 
 	router.GET("/vnc", controller.StartVNC)
-	router.GET("/vnc/quit", controller.QuitVNC)
+	router.GET("/vnc/quit", controller.ShutdownVNC)
+
+	controller.RegisterProxy(router)
 
 	// todo 浏览本地文件
 }
