@@ -3,7 +3,6 @@ package controller
 import (
 	"net"
 	"net/http"
-	"os"
 	"os_manage/config"
 	"os_manage/log"
 	"path/filepath"
@@ -17,14 +16,7 @@ func RegisterProxy(r *gin.Engine) {
 	serveFile := func(path string) func(ctx *gin.Context) {
 		return func(ctx *gin.Context) {
 			filePath := filepath.Join(config.ProcessWorkDir, "vnc/web", path)
-			fileBytes, err := os.ReadFile(filePath)
-			if err != nil {
-				ctx.Writer.WriteHeader(http.StatusInternalServerError)
-				ctx.Writer.WriteString(err.Error())
-				return
-			}
-			ctx.Writer.WriteHeader(http.StatusOK)
-			ctx.Writer.Write(fileBytes)
+			ctx.File(filePath)
 		}
 	}
 	r.GET("/package.json", serveFile("package.json"))
@@ -39,6 +31,10 @@ func RegisterProxy(r *gin.Engine) {
 		serveWs(c.Writer, c.Request)
 	})
 }
+
+// 下面关于websockify代理的代码基于https://github.com/novnc/websockify-other仓库修改
+// 该仓库基于LGPL-3.0协议 详情可参见:
+// https://github.com/novnc/websockify-other/blob/master/golang/websockify.go
 
 func serveWs(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)

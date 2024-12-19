@@ -1,4 +1,5 @@
 os_manage.exe
 log/*.log
-vnc/UltraVNC_1436/x64/mslogon.log
-vnc/UltraVNC_1436/x64/UltraVNC.ini
+vnc/
+.idea/
+.vscode/
