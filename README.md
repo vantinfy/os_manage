@@ -50,12 +50,12 @@ shutdown -help
 
 > 注：使用本项目的VNC功能时**默认同意遵守上面的[UltraVNC](https://github.com/ultravnc/UltraVNC)和[noVNC](https://github.com/novnc/noVNC)相关协议**。
 
+另外，因为noVNC使用的是WebSocket协议，因此使用VNC功能时本项目也会充当WS-TCP协议的代理转发站，源代码来自
+[novnc/websockify-other](https://github.com/novnc/websockify-other/blob/master/golang/websockify.go)
+
 ## 声明
 
 > 本项目是我自己在局域网内部控制电脑使用，实际使用过程中注意联网控制，自行甄别不安全来源的控制请求，一切损失均与本项目无关。
-
-另外，因为noVNC使用的是WebSocket协议，因此使用VNC功能时本项目也会充当WS-TCP协议的代理转发站，源代码来自
-[novnc/websockify-other](https://github.com/novnc/websockify-other/blob/master/golang/websockify.go)
 
 ## 使用
 
