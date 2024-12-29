@@ -26,6 +26,7 @@ func BiliDownload(c *gin.Context) {
 	if err != nil {
 		c.String(http.StatusServiceUnavailable, err.Error())
 	}
+
 	c.String(http.StatusOK, "download success")
 }
 
@@ -40,20 +41,15 @@ func DownloadByBvID(bvId, savePath string, saveCover bool) error {
 		return err
 	}
 
-	if saveCover { // 保存封面
-		req, _ := http.NewRequest(http.MethodGet, cover, nil)
-		setBiliHeader(req)
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Error("save cover failed", bvId, title, err)
-		}
-		defer resp.Body.Close()
+	if _, err = os.Stat(savePath); os.IsNotExist(err) {
+		_ = os.MkdirAll(savePath, 0644)
+	}
 
-		coverBytes, err := io.ReadAll(resp.Body)
+	if saveCover { // 保存封面
+		err = downloadCover(cover, title, savePath)
 		if err != nil {
 			log.Error("save cover failed", bvId, title, err)
 		}
-		_ = os.WriteFile(filepath.Join(savePath, title+".jpg"), coverBytes, 0644)
 	}
 
 	audioStreamUrl, videoStreamUrl, err := getVideoUrl(aid, cid)
@@ -164,11 +160,23 @@ func getVideoUrl(aid, cid int) (audioStreamUrl, videoStreamUrl string, err error
 	return
 }
 
-func downloadAVStream(audioStreamUrl, videoStreamUrl, title, savePath string) (err error) {
-	if _, err = os.Stat(savePath); os.IsNotExist(err) {
-		_ = os.MkdirAll(savePath, 0644)
+func downloadCover(cover, title, savePath string) error {
+	req, _ := http.NewRequest(http.MethodGet, cover, nil)
+	setBiliHeader(req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
 	}
+	defer resp.Body.Close()
 
+	coverBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(savePath, title+".jpg"), coverBytes, 0644)
+}
+
+func downloadAVStream(audioStreamUrl, videoStreamUrl, title, savePath string) (err error) {
 	// 下载音频流
 	req, _ := http.NewRequest(http.MethodGet, audioStreamUrl, nil)
 	setBiliHeader(req)
