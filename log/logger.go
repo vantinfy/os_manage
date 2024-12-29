@@ -46,12 +46,13 @@ var logger *Logger
 
 type Option func(lg *Logger)
 
-func WithLogLevel(logLevel _level) Option {
+func WithLogLevel(logLevel int) Option {
 	return func(lg *Logger) {
-		if !isLogLevelValid(logLevel) {
-			logLevel = LevelInfo
+		ll := _level(logLevel)
+		if !isLogLevelValid(ll) {
+			ll = LevelInfo
 		}
-		lg.logLevel = logLevel
+		lg.logLevel = ll
 	}
 }
 

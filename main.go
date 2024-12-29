@@ -12,10 +12,13 @@ import (
 )
 
 func main() {
-	logger := log.NewLogger(log.WithLogLevel(log.LevelInfo), log.WithStorePath("log/"))
+	logger := log.NewLogger(
+		log.WithLogLevel(config.GlobalConfig.Log.LogLevel),
+		log.WithStorePath(config.GlobalConfig.Log.LogPath),
+	)
 
 	server := &http.Server{
-		Addr:    ":7799",
+		Addr:    config.GlobalConfig.App.ServeAddr,
 		Handler: router.NewRouter(),
 	}
 

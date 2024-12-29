@@ -3,3 +3,4 @@ log/*.log
 vnc/
 .idea/
 .vscode/
+config.toml

@@ -31,6 +31,9 @@ func RouteGroups(router *gin.Engine) {
 
 	controller.RegisterProxy(router)
 
+	router.GET("/bili/flush", controller.FlushBiliCookie)
+	router.GET("/bili/:bv", controller.BiliDownload)
+
 	// todo 浏览本地文件
 }
 
