@@ -12,16 +12,18 @@ import (
 type _level int
 
 const (
-	LevelInfo  _level = 0
-	LevelError _level = 1
+	LevelDebug _level = 0
+	LevelInfo  _level = 1
+	LevelError _level = 3
 
 	MemoryMaxLogLine = 128
 	ErrorLogFile     = "error.log"
 	InfoLogFile      = "info.log"
+	DebugLogFile     = "debug.log"
 )
 
 func isLogLevelValid(l _level) bool {
-	if l != LevelInfo && l != LevelError {
+	if l != LevelDebug && l != LevelInfo && l != LevelError {
 		return false
 	}
 
@@ -30,6 +32,10 @@ func isLogLevelValid(l _level) bool {
 
 type Logger struct {
 	logLevel _level
+
+	debugLog   chan string
+	debugText  string
+	debugLines int
 
 	infoLog   chan string
 	infoText  string
@@ -58,19 +64,19 @@ func WithLogLevel(logLevel int) Option {
 
 func WithStorePath(storePath string) Option {
 	return func(lg *Logger) {
-		dir, _ := filepath.Split(storePath)
-		if _, err := os.Stat(dir); err != nil {
-			os.MkdirAll(dir, 0644)
+		if _, err := os.Stat(storePath); err != nil {
+			_ = os.MkdirAll(storePath, 0644)
 		}
-		lg.storePath = dir
+		lg.storePath = storePath
 	}
 }
 
 func NewLogger(opts ...Option) *Logger {
 	if logger == nil {
 		logger = &Logger{
-			infoLog:  make(chan string, 256),
-			errorLog: make(chan string, 256),
+			debugLog: make(chan string, 10),
+			infoLog:  make(chan string, 10),
+			errorLog: make(chan string, 10),
 		}
 	}
 	for _, opt := range opts {
@@ -91,6 +97,34 @@ func GetLogger() *Logger {
 }
 
 func (l *Logger) handleLogChan() {
+	var (
+		errFile   *os.File
+		infoFile  *os.File
+		debugFile *os.File
+		err       error
+	)
+	// 注意参数f是二级指针
+	openLogFile := func(name string, f **os.File) {
+		*f, err = os.OpenFile(filepath.Join(l.storePath, name), os.O_APPEND|os.O_CREATE, 0644)
+		if err != nil {
+			panic(fmt.Sprintf("open log file[%s] failed: %v", filepath.Join(l.storePath, name), err))
+		}
+	}
+	if l.storePath != "" {
+		openLogFile(ErrorLogFile, &errFile)
+		defer errFile.Close()
+
+		if l.logLevel <= LevelInfo {
+			openLogFile(InfoLogFile, &infoFile)
+			defer infoFile.Close()
+		}
+
+		if l.logLevel <= LevelDebug {
+			openLogFile(DebugLogFile, &debugFile)
+			defer debugFile.Close()
+		}
+	}
+
 	for {
 		select {
 		case errText := <-l.errorLog:
@@ -100,16 +134,12 @@ func (l *Logger) handleLogChan() {
 			}
 			l.errorText += errText
 
-			if l.storePath != "" {
-				errFile, err := os.OpenFile(filepath.Join(l.storePath, ErrorLogFile), os.O_APPEND|os.O_CREATE, 0644)
-				if err != nil {
-					continue
-				}
+			if errFile != nil {
 				errFile.WriteString(errText)
-				errFile.Close()
 			}
+
 		case infoText := <-l.infoLog:
-			if l.logLevel >= LevelError {
+			if l.logLevel > LevelInfo {
 				continue
 			}
 
@@ -119,13 +149,23 @@ func (l *Logger) handleLogChan() {
 			}
 			l.infoText += infoText
 
-			if l.storePath != "" {
-				errFile, err := os.OpenFile(filepath.Join(l.storePath, InfoLogFile), os.O_APPEND|os.O_CREATE, 0644)
-				if err != nil {
-					continue
-				}
-				errFile.WriteString(infoText)
-				errFile.Close()
+			if infoFile != nil {
+				infoFile.WriteString(infoText)
+			}
+
+		case debugText := <-l.debugLog:
+			if l.logLevel > LevelDebug {
+				continue
+			}
+
+			l.debugLines++
+			if l.debugLines > MemoryMaxLogLine {
+				l.debugText = ""
+			}
+			l.debugText += debugText
+
+			if debugFile != nil {
+				debugFile.WriteString(debugText)
 			}
 		}
 	}
@@ -156,6 +196,13 @@ func (l *Logger) Info(logContent ...any) {
 	l.infoLog <- appendContent
 }
 
+func (l *Logger) Debug(logContent ...any) {
+	appendContent := fmt.Sprintf("[Debug] %s: %v\n",
+		time.Now().Format("2006-01-02 15:04:05"), logContent)
+
+	l.debugLog <- appendContent
+}
+
 func Fatal(logContent ...any) {
 	GetLogger().Fatal(logContent)
 }
@@ -170,6 +217,14 @@ func Errorf(format string, logContent ...any) {
 
 func Info(logContent ...any) {
 	GetLogger().Info(logContent)
+}
+
+func Debug(logContent ...any) {
+	GetLogger().Debug(logContent)
+}
+
+func DebugLogChan() <-chan string {
+	return GetLogger().debugLog
 }
 
 func InfoLogChan() <-chan string {
