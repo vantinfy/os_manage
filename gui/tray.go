@@ -54,5 +54,5 @@ func openMainPanel() {
 
 func onExit() {
 	// 托盘程序退出时的清理逻辑
-	log.Error("托盘退出")
+	log.Info("托盘退出")
 }

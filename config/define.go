@@ -51,9 +51,8 @@ func LoadConfig() {
 				ServeAddr: DefaultAddr,
 			},
 			Log: LogConfig{
-				MemoryMaxLogLine: 128,
-				LogLevel:         1,
-				LogPath:          "log/",
+				LogLevel: 1,
+				LogPath:  "log/",
 			},
 			Bili: BiliConfig{
 				Cookie:    "",

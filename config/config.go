@@ -20,9 +20,8 @@ type AppConfig struct {
 
 // LogConfig 日志配置
 type LogConfig struct {
-	MemoryMaxLogLine int    `toml:"memory_max_log_line"` // 最大内存日志行数
-	LogLevel         int    `toml:"log_level"`           // 日志级别 (例如: 0=info, 1=error)
-	LogPath          string `toml:"log_path"`            // 日志存储路径
+	LogLevel int    `toml:"log_level"` // 日志级别 (例如: 0=info, 1=error)
+	LogPath  string `toml:"log_path"`  // 日志存储路径
 }
 
 // BiliConfig B站下载相关配置

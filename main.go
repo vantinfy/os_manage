@@ -8,13 +8,18 @@ import (
 	"os_manage/gui"
 	"os_manage/log"
 	"os_manage/router"
-	"syscall"
 )
 
 func main() {
 	logger := log.NewLogger(
 		log.WithLogLevel(config.GlobalConfig.Log.LogLevel),
 		log.WithStorePath(config.GlobalConfig.Log.LogPath),
+		log.WithLogExtend(make(chan string, 10), func(eha any, msg string) {
+			ch, ok := eha.(chan string)
+			if ok {
+				ch <- msg
+			}
+		}),
 	)
 
 	server := &http.Server{
@@ -28,16 +33,8 @@ func main() {
 		}
 	}()
 
-	// create a channel to receive signal
-	quit := config.GlobalQuit
+	gui.NewTray()
 
-	go func() {
-		gui.NewTray()
-		// 托盘退出时 主程序同步退出
-		quit <- syscall.SIGQUIT
-	}()
-
-	<-quit
 	beforeQuit(controller.QuitVNCServer)
 }
 

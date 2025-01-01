@@ -109,6 +109,7 @@ func (mw *MyWindow) AddIcon(iconPath string) {
 
 func GetPanelUI() *MyWindow {
 	if myWindow == nil {
+		log.Debug("try to new main panel")
 		myWindow = newMainPanel()
 	}
 

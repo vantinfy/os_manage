@@ -8,6 +8,7 @@ import (
 	"os_manage/config"
 	"os_manage/log"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -51,12 +52,15 @@ func newMainPanel() *MyWindow {
 
 				Text: "Show progress",
 				OnClicked: func() {
+					//log.Error("testing")
 					doProgress(mw)
 				},
 			},
 			TextEdit{
+				AssignTo: &mw.logArea,
+				VScroll:  true,
 				ReadOnly: true,
-			}, // todo log print
+			},
 		},
 	}.Create()); err != nil {
 		log.Fatal(err)
@@ -68,7 +72,7 @@ func newMainPanel() *MyWindow {
 		if reason == walk.CloseReasonUnknown {
 			*canceled = true // 阻止关闭
 			mw.Hide()        // 隐藏窗口
-			log.Info("main panel hided")
+			log.Debug("main panel hided")
 		}
 	})
 
@@ -79,7 +83,16 @@ func newMainPanel() *MyWindow {
 	mw.AddIcon(config.AppIconPath)
 
 	go func() {
-		// mw.logArea
+		errChan, ok := log.GetLogger().Extend.(chan string)
+		if !ok {
+			return
+		}
+
+		for {
+			msg := <-errChan
+			text := strings.Replace(msg, "\n", "\r\n", -1)
+			mw.logArea.SetText(fmt.Sprintf("%s%s", mw.logArea.Text(), text))
+		}
 	}()
 
 	return mw

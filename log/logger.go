@@ -16,10 +16,9 @@ const (
 	LevelInfo  _level = 1
 	LevelError _level = 3
 
-	MemoryMaxLogLine = 128
-	ErrorLogFile     = "error.log"
-	InfoLogFile      = "info.log"
-	DebugLogFile     = "debug.log"
+	ErrorLogFile = "error.log"
+	InfoLogFile  = "info.log"
+	DebugLogFile = "debug.log"
 )
 
 func isLogLevelValid(l _level) bool {
@@ -33,24 +32,26 @@ func isLogLevelValid(l _level) bool {
 type Logger struct {
 	logLevel _level
 
-	debugLog   chan string
-	debugText  string
-	debugLines int
-
-	infoLog   chan string
-	infoText  string
-	infoLines int
-
-	errorLog   chan string
-	errorText  string
-	errorLines int
+	debugLog chan string
+	infoLog  chan string
+	errorLog chan string
 
 	storePath string // "" -> means no store log file
+
+	Extend        any
+	ExtendHandler func(any, string)
 }
 
 var logger *Logger
 
 type Option func(lg *Logger)
+
+func WithLogExtend(extend any, extendHandler func(eha any, msg string)) Option {
+	return func(lg *Logger) {
+		lg.Extend = extend
+		lg.ExtendHandler = extendHandler
+	}
+}
 
 func WithLogLevel(logLevel int) Option {
 	return func(lg *Logger) {
@@ -128,41 +129,35 @@ func (l *Logger) handleLogChan() {
 	for {
 		select {
 		case errText := <-l.errorLog:
-			l.errorLines++
-			if l.errorLines > MemoryMaxLogLine {
-				l.errorText = "" // clear
+			if l.ExtendHandler != nil {
+				l.ExtendHandler(l.Extend, errText)
 			}
-			l.errorText += errText
 
 			if errFile != nil {
 				errFile.WriteString(errText)
 			}
 
 		case infoText := <-l.infoLog:
+			if l.ExtendHandler != nil {
+				l.ExtendHandler(l.Extend, infoText)
+			}
+
 			if l.logLevel > LevelInfo {
 				continue
 			}
-
-			l.infoLines++
-			if l.infoLines > MemoryMaxLogLine {
-				l.infoText = ""
-			}
-			l.infoText += infoText
 
 			if infoFile != nil {
 				infoFile.WriteString(infoText)
 			}
 
 		case debugText := <-l.debugLog:
+			if l.ExtendHandler != nil {
+				l.ExtendHandler(l.Extend, debugText)
+			}
+
 			if l.logLevel > LevelDebug {
 				continue
 			}
-
-			l.debugLines++
-			if l.debugLines > MemoryMaxLogLine {
-				l.debugText = ""
-			}
-			l.debugText += debugText
 
 			if debugFile != nil {
 				debugFile.WriteString(debugText)
