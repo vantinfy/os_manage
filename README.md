@@ -11,6 +11,7 @@
 + Windows计划关机
 + Windows屏幕电源控制
 + VirtualNetworkComputing(VNC)远程操作
++ B站视频下载
 
 ## 基本介绍
 
@@ -57,6 +58,16 @@ shutdown -help
 
 > 本项目是我自己在局域网内部控制电脑使用，实际使用过程中注意联网控制，自行甄别不安全来源的控制请求，一切损失均与本项目无关。
 
+## B站视频下载
+
+基于@[゚゚未闻花名](https://space.bilibili.com/630468506)的python版b站视频修改而来，原项目git地址[python-bilibili-downloads](https://github.com/T-Tedebug/python-bilibili-downloads)
+
+用正则匹配了下参数，现在不需要纯BV号，带完整b站视频链接也能直接下载了
+
+这里默认下载最高画质，但实际使用时需要在配置文件config.toml设置账号cookie，否则最高基本只能下载到480p画质
+
+关于如何获取cookie，后面补上链接
+
 ## 使用
 
 ### 直链下载
@@ -69,11 +80,13 @@ shutdown -help
 git clone https://vantinfy/os_manage.git
 cd os_manage
 # 需要确保安装了go环境
-./build.bat
+.\build.bat
 ```
 
 ## 计划
 
+- [x] B站视频下载
+- [ ] **运行时概率死锁问题**
 - [ ] **系统声音控制**
 - [ ] 排查屏幕电源熄灭后机箱风扇猛转一分钟左右的问题
 - [ ] 浏览远程文件 ~~我直接被窝里看电脑下载到本地的动漫！~~

@@ -41,12 +41,16 @@ func prepareVNCEnv() error {
 		log.Info("try to download UltraVNC")
 		err = tools.DownloadFile(downloadLinkUltraVNC, savePathUltraVNC)
 		if err != nil {
+			log.Error("download UltraVNC failed: ", err)
 			return err
 		}
+		log.Debug("download UltraVNC success")
 		err = tools.Unzip(savePathUltraVNC, destPathUltraVNC)
 		if err != nil {
+			log.Error("unzip UltraVNC failed: ", err)
 			return err
 		}
+		log.Debug("unzip UltraVNC success")
 	}
 	// 本项目的noVNC 网页端服务基于noVNC-1.5.0实现 遵守noVNC相关协议
 	// 相关文件来源：https://github.com/novnc/noVNC/archive/refs/tags/v1.5.0.zip
@@ -58,12 +62,16 @@ func prepareVNCEnv() error {
 		log.Info("try to download noVNC")
 		err = tryDownloadNoVNC()
 		if err != nil {
+			log.Error("download noVNC failed: ", err)
 			return err
 		}
+		log.Debug("download noVNC success")
 		err = tools.Unzip(savePathNoVNC, "vnc")
 		if err != nil {
+			log.Error("unzip noVNC failed: ", err)
 			return err
 		}
+		log.Debug("unzip noVNC success")
 		_ = os.Rename(destPathNoVNC, "vnc/web")
 	}
 
@@ -94,6 +102,7 @@ func tryDownloadNoVNC() error {
 func StartVNC(c *gin.Context) {
 	err := prepareVNCEnv()
 	if err != nil {
+		log.Error("prepare vnc env failed: ", err)
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -115,6 +124,7 @@ func StartVNC(c *gin.Context) {
 	//c.HTML(http.StatusOK, "vnc/web/vnc.html", gin.H{})
 	t, err := template.ParseFiles("vnc/web/vnc.html")
 	if err != nil {
+		log.Error("parse vnc.html template failed: ", err)
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}

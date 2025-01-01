@@ -21,10 +21,23 @@ func FlushBiliCookie(c *gin.Context) {
 }
 
 func BiliDownload(c *gin.Context) {
-	bvId := c.Param("bv")
+	bvUrl := c.Param("bv")
+	ex := c.Param("ex")
+	bvReg := regexp.MustCompile(`BV[a-zA-Z0-9]+`)
+	bvId := bvReg.FindString(bvUrl)
+	if bvId == "" {
+		bvId = bvReg.FindString(ex)
+	}
+	if !bvReg.MatchString(bvId) {
+		c.String(http.StatusBadRequest, "param is not bv")
+		return
+	}
+
 	err := DownloadByBvID(bvId, config.GlobalConfig.Bili.SavePath, config.GlobalConfig.Bili.SaveCover)
 	if err != nil {
+		log.Errorf("download by bvId %s error: %v", bvUrl, err)
 		c.String(http.StatusServiceUnavailable, err.Error())
+		return
 	}
 
 	c.String(http.StatusOK, "download success")
@@ -38,8 +51,10 @@ func BiliDownload(c *gin.Context) {
 func DownloadByBvID(bvId, savePath string, saveCover bool) error {
 	title, cover, aid, cid, err := GetVideoInfo(bvId)
 	if err != nil {
+		log.Errorf("get video[%s] info error: %v", bvId, err)
 		return err
 	}
+	log.Debug("get video info success", bvId)
 
 	if _, err = os.Stat(savePath); os.IsNotExist(err) {
 		_ = os.MkdirAll(savePath, 0644)
@@ -50,17 +65,22 @@ func DownloadByBvID(bvId, savePath string, saveCover bool) error {
 		if err != nil {
 			log.Error("save cover failed", bvId, title, err)
 		}
+		log.Debug("save cover success", bvId, title)
 	}
 
 	audioStreamUrl, videoStreamUrl, err := getVideoUrl(aid, cid)
 	if err != nil {
+		log.Errorf("get audio and video stream url error: %v", err)
 		return err
 	}
+	log.Debug("get audio and video stream url success", audioStreamUrl, videoStreamUrl)
 
 	err = downloadAVStream(audioStreamUrl, videoStreamUrl, title, savePath)
 	if err != nil {
+		log.Errorf("download audio and video by stream url error: %v", err)
 		return err
 	}
+	log.Debug("download audio and video success")
 
 	return mergeVideo(title, savePath)
 }
@@ -74,6 +94,7 @@ func GetVideoInfo(bvId string) (title string, cover string, aid int, cid int, er
 	setBiliHeader(req)
 	resp, err := http.Get(infoUrl)
 	if err != nil {
+		log.Errorf("get bv[%s] info url error: %v", bvId, err)
 		return
 	}
 	defer resp.Body.Close()
@@ -216,15 +237,19 @@ func mergeVideo(title, savePath string) error {
 	audioFile := filepath.Join(savePath, title+"_audio.m4s") // 音频流文件
 	outputFile := filepath.Join(savePath, title+".mp4")      // 合并后的文件
 
+	log.Debug("check ffmpeg before merge audio and video")
 	ffmpegPath, err := prepareFFMpegEnv()
 	if err != nil {
+		log.Error("prepare ffmpeg env failed: ", err)
 		return err
 	}
 
 	// 使用 ffmpeg 合并音频和视频
+	log.Info("try to merge audio and video by using ffmpeg")
 	cmd := exec.Command(ffmpegPath, "-i", videoFile, "-i", audioFile, "-c", "copy", outputFile)
 	err = cmd.Run()
 	if err != nil {
+		log.Error("cmd ffmpeg merge err: ", err)
 		return err
 	}
 
@@ -246,14 +271,18 @@ func prepareFFMpegEnv() (string, error) {
 
 	// 下载并解压ffmpeg
 	if _, err = os.Stat("ffmpeg-essentials.zip"); os.IsNotExist(err) {
+		log.Debug("try to download ffmpeg")
 		err = tools.DownloadFile("https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-7.1-essentials_build.zip", "ffmpeg-essentials.zip")
 		if err != nil {
+			log.Error("download ffmpeg failed", err)
 			return "", err
 		}
+		log.Debug("download ffmpeg success")
 	}
 
 	err = tools.Unzip("ffmpeg-essentials.zip", "./")
 	if err != nil {
+		log.Error("unzip ffmpeg failed", err)
 		return "", err
 	}
 	_ = os.Rename("ffmpeg-7.1-essentials_build", "ffmpeg")
