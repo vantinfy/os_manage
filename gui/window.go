@@ -1,12 +1,14 @@
 package gui
 
 import (
+	"fmt"
 	"github.com/lxn/walk"
 	"github.com/lxn/win"
 	"golang.org/x/sys/windows/registry"
 	"os"
 	"os_manage/config"
 	"os_manage/log"
+	"path/filepath"
 )
 
 // ----------------------------- gui -----------------------------------
@@ -60,13 +62,12 @@ func (mw *MyWindow) SetCloseBox() {
 }
 
 func autoBoot(state bool) {
-	// fetch this program's path
-	exePath, err := os.Executable()
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Error("Error getting executable path:", err)
-		return
+		homeDir = "./"
 	}
-
+	scriptDir := filepath.Join(homeDir, "AppData", "Roaming", "os_manage")
+	scriptPath := filepath.Join(scriptDir, "auto_boot.bat")
 	// the regedit path
 	keyPath := `Software\Microsoft\Windows\CurrentVersion\Run`
 	key, _, err := registry.CreateKey(registry.CURRENT_USER, keyPath, registry.ALL_ACCESS)
@@ -77,13 +78,40 @@ func autoBoot(state bool) {
 	defer key.Close()
 
 	if state {
-		err = key.SetStringValue(config.RegeditKey, exePath)
+		// 创建启动脚本
+		if _, err := os.Stat(scriptPath); err != nil {
+			_ = os.MkdirAll(scriptDir, 0644)
+			nowPath, err := os.Executable()
+			if err != nil {
+				log.Error("set auto boot failed cause getting executable path:", err)
+				return
+			}
+			nowDir, nowName := filepath.Split(nowPath)
+			err = os.WriteFile(scriptPath, []byte(fmt.Sprintf(`cd /d %s
+.\%s
+`, nowDir, nowName)), 0644)
+			if err != nil {
+				log.Error("set auto boot failed cause writing to file:", err)
+				return
+			}
+		}
+
+		// 设置开机自启
+		err = key.SetStringValue(config.RegeditKey, scriptPath)
+		if err != nil {
+			log.Error("setting auto_boot.bat failed:", err)
+			return
+		}
+
+		log.Debug("set auto boot success", scriptPath)
 	} else {
 		err = key.DeleteValue(config.RegeditKey)
-	}
+		if err != nil {
+			log.Errorf("set program autoBoot state[%v] failed: %v\n", state, err)
+		}
+		_ = os.RemoveAll(scriptPath)
 
-	if err != nil {
-		log.Errorf("set program autoBoot state[%v] failed: %v\n", state, err)
+		log.Debug("set not auto boot success", scriptPath)
 	}
 }
 
