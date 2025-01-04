@@ -6,7 +6,9 @@ import (
 	. "github.com/lxn/walk/declarative"
 	"github.com/lxn/win"
 	"os_manage/config"
+	"os_manage/controller"
 	"os_manage/log"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -40,20 +42,36 @@ func newMainPanel() *MyWindow {
 			//	OnCheckStateChanged: mw.SetCloseBox,
 			//},
 			CheckBox{
+				Checked:             isAutoBoot(),
 				AssignTo:            &mw.autoBootBox,
 				Text:                "开机启动",
 				OnCheckStateChanged: mw.SetAutoBootBox,
 			},
 			LineEdit{
-				ToolTipText: "tips",
+				AssignTo:    &mw.biliLineEdit,
+				ToolTipText: "b站视频下载 支持bv或包含bv的完整链接",
 			},
 			PushButton{
 				MinSize: Size{Width: 60, Height: 37},
 
-				Text: "Show progress",
+				Text: "下载",
 				OnClicked: func() {
 					//log.Error("testing")
-					doProgress(mw)
+					bvReg := regexp.MustCompile(`BV[a-zA-Z0-9]+`)
+					bvId := bvReg.FindString(mw.biliLineEdit.Text())
+					if bvId == "" {
+						log.Error("there is not found bv in:", mw.biliLineEdit.Text())
+						return
+					}
+					log.Debug("try to download bv", bvId)
+
+					err := controller.DownloadByBvID(bvId, config.GlobalConfig.Bili.SavePath, config.GlobalConfig.Bili.SaveCover)
+					if err != nil {
+						log.Errorf("download bv[%s] error: %v", bvId, err)
+						return
+					}
+					log.Info("download video to", config.GlobalConfig.Bili.SavePath, "success")
+					//doProgress(mw)
 				},
 			},
 			TextEdit{
@@ -100,7 +118,7 @@ func newMainPanel() *MyWindow {
 
 var hWnd win.HWND
 var dialog *walk.Dialog
-var jindu *walk.LineEdit
+var progress *walk.LineEdit
 var confirm *walk.PushButton
 
 func doProgress(mw *MyWindow) {
@@ -118,7 +136,7 @@ func doProgress(mw *MyWindow) {
 				Column: 1,
 			},
 			LineEdit{
-				AssignTo: &jindu,
+				AssignTo: &progress,
 				ReadOnly: true,
 				Row:      1,
 				Column:   2,
@@ -129,6 +147,7 @@ func doProgress(mw *MyWindow) {
 				Text:     `执行完毕，退出`,
 				Enabled:  false, //默认不可用
 				OnClicked: func() {
+					mw.biliLineEdit.SetText("")
 					// 因为弹窗关闭键被取消,按键关闭
 					dialog.Close(0)
 				},
@@ -162,7 +181,7 @@ func progressWorker(mw *MyWindow) {
 		dialog.Synchronize(func() {
 			mw.progressBar.WidgetBase.SetToolTipText(strconv.FormatInt(n, 10))
 			mw.progressBar.SetValue(int(n))
-			jindu.SetText(strconv.FormatInt(n, 10))
+			progress.SetText(strconv.FormatInt(n, 10))
 		})
 	})
 	// 跑完后按键可用

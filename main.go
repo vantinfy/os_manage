@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net/http"
+	"os"
 	"os_manage/config"
 	"os_manage/controller"
 	"os_manage/gui"
@@ -31,6 +32,11 @@ func main() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Fatal("listen:", err)
 		}
+	}()
+
+	go func() {
+		<-config.GlobalQuit
+		os.Exit(0)
 	}()
 
 	gui.NewTray()

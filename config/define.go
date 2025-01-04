@@ -5,6 +5,7 @@ import (
 	"github.com/lxn/win"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 )
 
@@ -21,6 +22,7 @@ var (
 	GlobalQuit     chan os.Signal
 	MainPanelHWND  win.HWND // 主窗口句柄
 	GlobalConfig   Config
+	HomeDir        string
 )
 
 func init() {
@@ -31,6 +33,15 @@ func init() {
 
 	GlobalQuit = make(chan os.Signal, 1)
 	signal.Notify(GlobalQuit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	HomeDir, err = os.UserHomeDir()
+	if err != nil {
+		HomeDir = "./"
+	}
+	HomeDir = filepath.Join(HomeDir, "AppData", "Roaming", "os_manage")
+	if _, err = os.Stat(HomeDir); os.IsNotExist(err) {
+		_ = os.MkdirAll(HomeDir, 0644)
+	}
 
 	LoadConfig()
 }

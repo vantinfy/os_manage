@@ -15,13 +15,14 @@ import (
 
 type MyWindow struct {
 	*walk.MainWindow
-	hWnd        win.HWND
-	minimizeBox *walk.CheckBox
-	maximizeBox *walk.CheckBox
-	closeBox    *walk.CheckBox
-	autoBootBox *walk.CheckBox
-	progressBar *walk.ProgressBar
-	logArea     *walk.TextEdit
+	hWnd         win.HWND
+	minimizeBox  *walk.CheckBox
+	maximizeBox  *walk.CheckBox
+	closeBox     *walk.CheckBox
+	autoBootBox  *walk.CheckBox
+	biliLineEdit *walk.LineEdit
+	progressBar  *walk.ProgressBar
+	logArea      *walk.TextEdit
 }
 
 var myWindow *MyWindow
@@ -61,13 +62,24 @@ func (mw *MyWindow) SetCloseBox() {
 	win.RemoveMenu(hMenu, win.SC_CLOSE, win.MF_BYCOMMAND)
 }
 
-func autoBoot(state bool) {
-	homeDir, err := os.UserHomeDir()
+// 检测注册表key 决定初始是否勾选
+func isAutoBoot() bool {
+	key, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Run`, registry.ALL_ACCESS)
 	if err != nil {
-		homeDir = "./"
+		return false
 	}
-	scriptDir := filepath.Join(homeDir, "AppData", "Roaming", "os_manage")
-	scriptPath := filepath.Join(scriptDir, "auto_boot.bat")
+	defer key.Close()
+
+	value, _, err := key.GetStringValue(config.RegeditKey)
+	if err != nil {
+		return false
+	}
+
+	return value == filepath.Join(config.HomeDir, "auto_boot.bat")
+}
+
+func autoBoot(state bool) {
+	scriptPath := filepath.Join(config.HomeDir, "auto_boot.bat")
 	// the regedit path
 	keyPath := `Software\Microsoft\Windows\CurrentVersion\Run`
 	key, _, err := registry.CreateKey(registry.CURRENT_USER, keyPath, registry.ALL_ACCESS)
@@ -80,7 +92,7 @@ func autoBoot(state bool) {
 	if state {
 		// 创建启动脚本
 		if _, err := os.Stat(scriptPath); err != nil {
-			_ = os.MkdirAll(scriptDir, 0644)
+			_ = os.MkdirAll(config.HomeDir, 0644)
 			nowPath, err := os.Executable()
 			if err != nil {
 				log.Error("set auto boot failed cause getting executable path:", err)
@@ -115,7 +127,6 @@ func autoBoot(state bool) {
 	}
 }
 
-// todo 检测注册表key 决定初始是否勾选
 func (mw *MyWindow) SetAutoBootBox() {
 	if mw.autoBootBox.Checked() {
 		autoBoot(true)
