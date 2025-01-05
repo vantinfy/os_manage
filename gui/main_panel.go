@@ -14,70 +14,88 @@ import (
 	"time"
 )
 
+var (
+	biliGroupBox GroupBox
+)
+
+func getBiliGroupBox(mw *MyWindow) GroupBox {
+	biliSyncOnce.Do(func() {
+		biliGroupBox = GroupBox{
+			Layout: HBox{}, Title: "b站视频下载",
+			Children: []Widget{
+				LineEdit{
+					AssignTo:    &mw.biliLineEdit,
+					ToolTipText: "支持bv或包含bv的完整链接",
+				},
+				PushButton{
+					MinSize: Size{Width: 60, Height: 37}, Text: "下载",
+					OnClicked: func() {
+						bvReg := regexp.MustCompile(`BV[a-zA-Z0-9]+`)
+						bvId := bvReg.FindString(mw.biliLineEdit.Text())
+						if bvId == "" {
+							log.Error("there is not found bv in:", mw.biliLineEdit.Text())
+							return
+						}
+						log.Debug("try to download bv", bvId)
+
+						err := controller.DownloadByBvID(bvId, config.GlobalConfig.Bili.SavePath, config.GlobalConfig.Bili.SaveCover)
+						if err != nil {
+							log.Errorf("download bv[%s] error: %v", bvId, err)
+							return
+						}
+						log.Info("download video to", config.GlobalConfig.Bili.SavePath, "success")
+						mw.biliLineEdit.SetText("")
+					},
+				},
+			},
+		}
+	})
+
+	return biliGroupBox
+}
+
 func newMainPanel() *MyWindow {
 	mw := &MyWindow{}
 
 	if err := (MainWindow{
 		AssignTo: &mw.MainWindow,
-		Title:    "notify icon",
-		Size:     Size{550, 380},
+		Title:    "os manage",
+		Size:     Size{Width: 560, Height: 480},
 		Layout:   VBox{},
 		Children: []Widget{
-			//CheckBox{
-			//	AssignTo:            &mw.minimizeBox,
-			//	Text:                "显示最小化按钮",
-			//	Checked:             true,
-			//	OnCheckStateChanged: mw.SetMinimizeBox,
-			//},
-			//CheckBox{
-			//	AssignTo:            &mw.maximizeBox,
-			//	Text:                "显示最大化按钮",
-			//	Checked:             true,
-			//	OnCheckStateChanged: mw.SetMaximizeBox,
-			//},
-			//CheckBox{
-			//	AssignTo:            &mw.closeBox,
-			//	Text:                "显示关闭按钮",
-			//	Checked:             true,
-			//	OnCheckStateChanged: mw.SetCloseBox,
-			//},
 			CheckBox{
 				Checked:             isAutoBoot(),
 				AssignTo:            &mw.autoBootBox,
 				Text:                "开机启动",
 				OnCheckStateChanged: mw.SetAutoBootBox,
 			},
-			LineEdit{
-				AssignTo:    &mw.biliLineEdit,
-				ToolTipText: "b站视频下载 支持bv或包含bv的完整链接",
-			},
+			getBiliGroupBox(mw),
 			PushButton{
-				MinSize: Size{Width: 60, Height: 37},
-
-				Text: "下载",
+				Text: "碧蓝航线科技",
 				OnClicked: func() {
-					//log.Error("testing")
-					bvReg := regexp.MustCompile(`BV[a-zA-Z0-9]+`)
-					bvId := bvReg.FindString(mw.biliLineEdit.Text())
-					if bvId == "" {
-						log.Error("there is not found bv in:", mw.biliLineEdit.Text())
-						return
-					}
-					log.Debug("try to download bv", bvId)
-
-					err := controller.DownloadByBvID(bvId, config.GlobalConfig.Bili.SavePath, config.GlobalConfig.Bili.SaveCover)
+					azureLanePanel = &AzureLanePanel{}
+					err := MainWindow{
+						AssignTo: &azureLanePanel.MainWindow, Size: Size{Width: 560, Height: 370},
+						Layout: VBox{}, Title: "碧蓝航线科技",
+						Children: []Widget{
+							getAzureLaneBox(azureLanePanel),
+							Composite{
+								Layout: HBox{},
+								Children: []Widget{
+									PushButton{Text: "重置"}, PushButton{Text: "查询"},
+								},
+							},
+							Composite{}, // 结果
+						},
+					}.Create()
 					if err != nil {
-						log.Errorf("download bv[%s] error: %v", bvId, err)
-						return
+						log.Error("create azure lane error:", err)
 					}
-					log.Info("download video to", config.GlobalConfig.Bili.SavePath, "success")
-					//doProgress(mw)
+					azureLanePanel.Run()
 				},
 			},
-			TextEdit{
-				AssignTo: &mw.logArea,
-				VScroll:  true,
-				ReadOnly: true,
+			TextEdit{ // 日志打印区
+				ReadOnly: true, VScroll: true, AssignTo: &mw.logArea,
 			},
 		},
 	}.Create()); err != nil {
@@ -100,7 +118,7 @@ func newMainPanel() *MyWindow {
 
 	mw.AddIcon(config.AppIconPath)
 
-	go func() {
+	go func() { // 监听log并输出到textEdit
 		errChan, ok := log.GetLogger().Extend.(chan string)
 		if !ok {
 			return
