@@ -6,23 +6,27 @@ import (
 	"github.com/lxn/win"
 	"golang.org/x/sys/windows/registry"
 	"os"
+	"os/exec"
 	"os_manage/config"
+	"os_manage/controller"
 	"os_manage/log"
 	"path/filepath"
+	"regexp"
 )
 
 // ----------------------------- gui -----------------------------------
 
 type MyWindow struct {
 	*walk.MainWindow
-	hWnd         win.HWND
-	minimizeBox  *walk.CheckBox
-	maximizeBox  *walk.CheckBox
-	closeBox     *walk.CheckBox
-	autoBootBox  *walk.CheckBox
-	biliLineEdit *walk.LineEdit
-	progressBar  *walk.ProgressBar
-	logArea      *walk.TextEdit
+	hWnd           win.HWND
+	minimizeBox    *walk.CheckBox
+	maximizeBox    *walk.CheckBox
+	closeBox       *walk.CheckBox
+	autoBootBox    *walk.CheckBox
+	biliLineEdit   *walk.LineEdit
+	biliCookieEdit *walk.LineEdit
+	progressBar    *walk.ProgressBar
+	logArea        *walk.TextEdit
 }
 
 var myWindow *MyWindow
@@ -153,4 +157,41 @@ func GetPanelUI() *MyWindow {
 	}
 
 	return myWindow
+}
+
+func (mw *MyWindow) DownloadBiliVideo() {
+	bvReg := regexp.MustCompile(`BV[a-zA-Z0-9]+`)
+	bvId := bvReg.FindString(mw.biliLineEdit.Text())
+	if bvId == "" {
+		log.Error("there is not found bv in:", mw.biliLineEdit.Text())
+		return
+	}
+	log.Debug("try to download bv", bvId)
+
+	err := controller.DownloadByBvID(bvId, config.GlobalConfig.Bili.SavePath, config.GlobalConfig.Bili.SaveCover)
+	if err != nil {
+		log.Errorf("download bv[%s] error: %v", bvId, err)
+		return
+	}
+	log.Info("download video to", config.GlobalConfig.Bili.SavePath, "success")
+	mw.biliLineEdit.SetText("")
+}
+
+func (mw *MyWindow) OpenBiliSavePath() {
+	err := exec.Command("explorer", config.GlobalConfig.Bili.SavePath).Start()
+	if err != nil {
+		log.Error("open bili save path error:", err)
+	}
+}
+
+func (mw *MyWindow) SaveBiliCookie() {
+	cookie := mw.biliCookieEdit.Text()
+	config.GlobalConfig.Bili.Cookie = cookie
+	err := config.SaveConfigToTomlFile()
+	if err != nil {
+		log.Error("save cookie error:", err)
+	} else {
+		mw.biliCookieEdit.SetText("")
+		log.Debug("save new cookie success:", config.GlobalConfig.Bili.Cookie)
+	}
 }

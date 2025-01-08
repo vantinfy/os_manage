@@ -6,9 +6,7 @@ import (
 	. "github.com/lxn/walk/declarative"
 	"github.com/lxn/win"
 	"os_manage/config"
-	"os_manage/controller"
 	"os_manage/log"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -21,30 +19,31 @@ var (
 func getBiliGroupBox(mw *MyWindow) GroupBox {
 	biliSyncOnce.Do(func() {
 		biliGroupBox = GroupBox{
-			Layout: HBox{}, Title: "b站视频下载",
+			Layout: VBox{}, Title: "b站视频下载",
 			Children: []Widget{
-				LineEdit{
-					AssignTo:    &mw.biliLineEdit,
-					ToolTipText: "支持bv或包含bv的完整链接",
-				},
-				PushButton{
-					MinSize: Size{Width: 60, Height: 37}, Text: "下载",
-					OnClicked: func() {
-						bvReg := regexp.MustCompile(`BV[a-zA-Z0-9]+`)
-						bvId := bvReg.FindString(mw.biliLineEdit.Text())
-						if bvId == "" {
-							log.Error("there is not found bv in:", mw.biliLineEdit.Text())
-							return
-						}
-						log.Debug("try to download bv", bvId)
-
-						err := controller.DownloadByBvID(bvId, config.GlobalConfig.Bili.SavePath, config.GlobalConfig.Bili.SaveCover)
-						if err != nil {
-							log.Errorf("download bv[%s] error: %v", bvId, err)
-							return
-						}
-						log.Info("download video to", config.GlobalConfig.Bili.SavePath, "success")
-						mw.biliLineEdit.SetText("")
+				Composite{
+					MaxSize: Size{Height: 28}, Layout: HBox{},
+					Children: []Widget{
+						LineEdit{
+							AssignTo:    &mw.biliLineEdit,
+							ToolTipText: "支持bv或包含bv的完整链接",
+						},
+						PushButton{
+							MinSize: Size{Width: 60, Height: 37}, Text: "下载",
+							OnClicked: mw.DownloadBiliVideo,
+						}, PushButton{
+							Text:      "打开保存目录",
+							OnClicked: mw.OpenBiliSavePath,
+						},
+					},
+				}, Composite{
+					MaxSize: Size{Height: 28}, Layout: HBox{},
+					Children: []Widget{
+						LineEdit{AssignTo: &mw.biliCookieEdit},
+						PushButton{
+							MinSize: Size{Width: 60, Height: 37}, Text: "写入并保存新cookie",
+							OnClicked: mw.SaveBiliCookie,
+						},
 					},
 				},
 			},
