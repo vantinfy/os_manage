@@ -149,3 +149,33 @@ func getAzureLaneBox(alp *AzureLanePanel) GroupBox {
 
 	return azureLaneBox
 }
+
+func OpenAzureLanePanel() {
+	if azureLanePanel == nil {
+		azureLanePanel = &AzureLanePanel{}
+		err := MainWindow{
+			AssignTo: &azureLanePanel.MainWindow, Size: Size{Width: 560, Height: 370},
+			Layout: VBox{}, Title: "碧蓝航线科技",
+			Children: []Widget{
+				getAzureLaneBox(azureLanePanel),
+				PushButton{Text: "重置"}, // todo reset
+				Composite{},            // todo 结果
+			},
+		}.Create()
+		if err != nil {
+			log.Error("create azure lane error:", err)
+			return
+		}
+		azureLanePanel.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
+			if reason == walk.CloseReasonUnknown {
+				*canceled = true
+				azureLanePanel.Hide()
+			}
+		})
+
+		azureLanePanel.Run()
+		return
+	}
+
+	azureLanePanel.Show()
+}

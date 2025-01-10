@@ -178,10 +178,17 @@ func (mw *MyWindow) DownloadBiliVideo() {
 }
 
 func (mw *MyWindow) OpenBiliSavePath() {
-	err := exec.Command("explorer", config.GlobalConfig.Bili.SavePath).Start()
+	abs, err := filepath.Abs(config.GlobalConfig.Bili.SavePath)
+	if err != nil {
+		log.Error("get abs path error:", err)
+		return
+	}
+	err = exec.Command("explorer", abs).Start()
 	if err != nil {
 		log.Error("open bili save path error:", err)
 	}
+
+	log.Debug("open bili save path:", abs)
 }
 
 func (mw *MyWindow) SaveBiliCookie() {

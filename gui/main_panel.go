@@ -70,28 +70,8 @@ func newMainPanel() *MyWindow {
 			},
 			getBiliGroupBox(mw),
 			PushButton{
-				Text: "碧蓝航线科技",
-				OnClicked: func() {
-					azureLanePanel = &AzureLanePanel{}
-					err := MainWindow{
-						AssignTo: &azureLanePanel.MainWindow, Size: Size{Width: 560, Height: 370},
-						Layout: VBox{}, Title: "碧蓝航线科技",
-						Children: []Widget{
-							getAzureLaneBox(azureLanePanel),
-							Composite{
-								Layout: HBox{},
-								Children: []Widget{
-									PushButton{Text: "重置"}, PushButton{Text: "查询"},
-								},
-							},
-							Composite{}, // 结果
-						},
-					}.Create()
-					if err != nil {
-						log.Error("create azure lane error:", err)
-					}
-					azureLanePanel.Run()
-				},
+				Text:      "碧蓝航线科技",
+				OnClicked: OpenAzureLanePanel,
 			},
 			TextEdit{ // 日志打印区
 				ReadOnly: true, VScroll: true, AssignTo: &mw.logArea,
