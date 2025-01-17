@@ -6,6 +6,7 @@ import (
 	"fmt"
 	_ "modernc.org/sqlite"
 	"os_manage/database"
+	"os_manage/log"
 )
 
 const (
@@ -62,6 +63,7 @@ func InsertShipData(db *sql.DB, ships map[string]Ship) error {
 	defer tx.Rollback() // 如果出了问题，可以回滚
 
 	// 插入每艘船
+	insertCnt := int64(0)
 	for _, ship := range ships {
 		// 序列化数组字段为 JSON 字符串
 		clothingJSON, _ := json.Marshal(ship.Clothing)
@@ -74,7 +76,7 @@ func InsertShipData(db *sql.DB, ships map[string]Ship) error {
 
 		// 构建 INSERT 语句
 		query := fmt.Sprintf(`
-            INSERT INTO %s (
+            INSERT OR IGNORE INTO %s (
                 name, avatar, clothing, type, tech_point_count, 
                 tech_point_camp, tech_point, rarity, mind_cost, camp, construct_time, 
                 install_date, transform_date, ordinary_drop, file_drop, activity_drop, cute, tech_per_mind
@@ -83,7 +85,7 @@ func InsertShipData(db *sql.DB, ships map[string]Ship) error {
             )`, TableShip)
 
 		// 执行插入操作
-		_, err := tx.Exec(query,
+		res, err := tx.Exec(query,
 			ship.Name,
 			ship.Avatar,
 			string(clothingJSON),
@@ -106,7 +108,13 @@ func InsertShipData(db *sql.DB, ships map[string]Ship) error {
 		if err != nil {
 			return err
 		}
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		insertCnt += affected
 	}
+	log.Info("insert to db count", insertCnt)
 
 	// 提交事务
 	if err := tx.Commit(); err != nil {
@@ -117,13 +125,22 @@ func InsertShipData(db *sql.DB, ships map[string]Ship) error {
 }
 
 func LoadShips(selectSql string) (map[string]Ship, error) {
+	retryTimes := 3
+retry:
 	db, err := database.GetDB(LocalDBName)
 	if err != nil {
-		return nil, err
+		err = GetAllShips()
+		if err != nil {
+			return nil, err
+		}
+		retryTimes--
+		if retryTimes >= 0 {
+			goto retry
+		}
 	}
 	defer db.Close()
 
-	// 创建一个空的 map 来存储所有船只
+	// 创建一个空的map来存储所有船
 	ships := make(map[string]Ship)
 
 	// 查询所有船只的数据

@@ -1,6 +1,7 @@
 package azur_lane
 
 import (
+	"context"
 	"fmt"
 	"github.com/shopspring/decimal"
 	"io"
@@ -202,26 +203,26 @@ func AnalyseObtainSource(originRespHTML string, ship *Ship) {
 	}
 }
 
-func GetAllShips() {
+func GetAllShips() error {
 	respBytes, err := os.ReadFile("wiki.html")
 	if err != nil {
 		req, _ := http.NewRequest(http.MethodGet, `https://wiki.biligame.com/blhx/%E8%88%B0%E8%88%B9%E5%9B%BE%E9%89%B4`, nil)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Error("获取wiki首页失败", err)
-			return
+			return err
 		}
 		defer resp.Body.Close()
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			log.Error("读取wiki首页响应数据失败", err)
-			return
+			return err
 		}
 		err = os.WriteFile("wiki.html", body, 0644)
 		if err != nil {
 			log.Error("保存wiki首页文件失败", err)
-			return
+			return err
 		}
 		respBytes = body
 	}
@@ -237,7 +238,7 @@ func GetAllShips() {
 		}
 		outList = append(outList, v)
 	}
-	log.Info(time.Now(), "版本非联动舰船总数", len(outList)) // 843 -改=745 -联动=681
+	log.Info("版本非联动舰船总数", len(outList))
 
 	avatarReg := regexp.MustCompile(`https://patchwiki.biligame.com/images/blhx/thumb/.+/60px-.+?头像.jpg`)
 	nameReg := regexp.MustCompile(`-(.+)头像`)
@@ -250,11 +251,30 @@ func GetAllShips() {
 	newCache, err := NewCache(CacheName)
 	if err != nil {
 		fmt.Println("Error loading cache:", err)
-		return
+		return err
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cnt := 0 // 已获取数据的船数量
+	go func() {
+		ticker := time.NewTicker(7 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				log.Info("舰船数据获取完毕")
+				return
+			case <-ticker.C:
+				log.Info(fmt.Sprintf("获取舰船数据中[%d/%d]...请耐心等待", cnt, len(outList)))
+			}
+		}
+	}()
 
 	allShips := map[string]Ship{}
 	for _, v := range outList {
+		cnt++
+
 		ship := &Ship{}
 		htmlOrigin, err := url.QueryUnescape(v)
 		if err != nil {
@@ -333,6 +353,7 @@ func GetAllShips() {
 		allShips[ship.Name] = *ship
 		newCache.Set(ship.Name, ship)
 	}
+	cancel()
 	//wg.Wait()
 	log.Info("get all ships: real ships count", len(newCache.Data))
 
@@ -345,12 +366,14 @@ func GetAllShips() {
 	db, err := database.GetDB(LocalDBName)
 	if err != nil {
 		log.Error("get all ships: get db failed", err)
-		return
+		return err
 	}
 	defer db.Close()
 	err = InsertShipData(db, allShips)
 	if err != nil {
 		log.Error("get all ships: insert ships to db failed", err)
+		return err
 	}
-	log.Debug("get all ships: insert to db success", len(allShips))
+
+	return nil
 }
