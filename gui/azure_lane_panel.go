@@ -68,6 +68,16 @@ type AzureLanePanel struct {
 	CampCuriaOfVichya      *walk.CheckBox // 维希教廷
 	CampSardinianEmpire    *walk.CheckBox // 撒丁帝国
 	CampOther              *walk.CheckBox // 其他
+
+	TechFill          *walk.CheckBox // 装填
+	TechHit           *walk.CheckBox // 命中
+	TechBombard       *walk.CheckBox // 炮击
+	TechAviation      *walk.CheckBox // 航空
+	TechMotorized     *walk.CheckBox // 机动
+	TechThunder       *walk.CheckBox // 雷击
+	TechAirDefence    *walk.CheckBox // 防空
+	TechLasting       *walk.CheckBox // 耐久
+	TechAntisubmarine *walk.CheckBox // 反潜
 }
 
 func (p *AzureLanePanel) Types() string {
@@ -172,7 +182,43 @@ func (p *AzureLanePanel) Camp() string {
 	return ""
 }
 
-func (p *AzureLanePanel) Tech() {
+func (p *AzureLanePanel) Teches() string {
+	var teches []string
+	if p.TechFill.Checked() {
+		teches = append(teches, "装填")
+	}
+	if p.TechHit.Checked() {
+		teches = append(teches, "命中")
+	}
+	if p.TechBombard.Checked() {
+		teches = append(teches, "炮击")
+	}
+	if p.TechAviation.Checked() {
+		teches = append(teches, "航空")
+	}
+	if p.TechMotorized.Checked() {
+		teches = append(teches, "机动")
+	}
+	if p.TechThunder.Checked() {
+		teches = append(teches, "雷击")
+	}
+	if p.TechAirDefence.Checked() {
+		teches = append(teches, "防空")
+	}
+	if p.TechLasting.Checked() {
+		teches = append(teches, "耐久")
+	}
+	if p.TechAntisubmarine.Checked() {
+		teches = append(teches, "反潜")
+	}
+
+	if len(teches) > 0 {
+		return fmt.Sprintf(" tech_point regexp '%s' ", strings.Join(teches, "|"))
+	}
+	return ""
+}
+
+func (p *AzureLanePanel) TechQuery() {
 	sql := `select * from ships`
 
 	conditions := make([]string, 0)
@@ -184,6 +230,9 @@ func (p *AzureLanePanel) Tech() {
 	}
 	if p.Camp() != "" {
 		conditions = append(conditions, p.Camp())
+	}
+	if p.Teches() != "" {
+		conditions = append(conditions, p.Teches())
 	}
 	where := strings.Join(conditions, " and ")
 	if where != "" {
@@ -210,46 +259,46 @@ func getAzureLaneBox(alp *AzureLanePanel) GroupBox {
 			CheckBox{
 				AssignTo:  &alp.TypeBackRow,
 				Text:      "后排主力",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.TypeFrontRow,
 				Text:      "前排先锋",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.TypeBattleShip,
 				Text:      "战列",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.TypeCarrierShip,
 				Text:      "航母",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.TypeWeightPatrol,
 				Text:      "重巡",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			},
 		}
 		typeLine2 := []Widget{
 			CheckBox{
 				AssignTo:  &alp.TypeLightPatrol,
 				Text:      "轻巡",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.TypeDestroyer,
 				Text:      "驱逐",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.TypeSubmarine,
 				Text:      "潜艇",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.TypeSail,
 				Text:      "风帆",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.TypeOther,
 				Text:      "其他", // 重炮 维修 运输
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			},
 		}
 		typeGroup := GroupBox{
@@ -270,27 +319,27 @@ func getAzureLaneBox(alp *AzureLanePanel) GroupBox {
 					AssignTo:   &alp.RarityNormal,
 					Background: SolidColorBrush{Color: 0xA8AEB5},
 					Text:       "普通",
-					OnClicked:  alp.Tech,
+					OnClicked:  alp.TechQuery,
 				}, CheckBox{
 					AssignTo:   &alp.RarityRare,
 					Background: SolidColorBrush{Color: 0xF3E67C},
 					Text:       "稀有",
-					OnClicked:  alp.Tech,
+					OnClicked:  alp.TechQuery,
 				}, CheckBox{
 					AssignTo:   &alp.RarityElite,
 					Background: SolidColorBrush{Color: 0xDDA0DD},
 					Text:       "精锐",
-					OnClicked:  alp.Tech,
+					OnClicked:  alp.TechQuery,
 				}, CheckBox{
 					AssignTo:   &alp.RaritySuperRare,
 					Background: SolidColorBrush{Color: 0x6BC7F7},
 					Text:       "超稀有",
-					OnClicked:  alp.Tech,
+					OnClicked:  alp.TechQuery,
 				}, CheckBox{
 					AssignTo:   &alp.RarityUltraRare,
 					Background: rainbowColor,
 					Text:       "海上传奇",
-					OnClicked:  alp.Tech,
+					OnClicked:  alp.TechQuery,
 				},
 			},
 		}
@@ -298,46 +347,46 @@ func getAzureLaneBox(alp *AzureLanePanel) GroupBox {
 			CheckBox{
 				AssignTo:  &alp.CampEagleUnion,
 				Text:      "白鹰",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.CampRoyalNavy,
 				Text:      "皇家",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.CampSakuraIslands,
 				Text:      "重樱",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.CampIronBlood,
 				Text:      "铁血",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.CampDragonEmpery,
 				Text:      "东煌",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			},
 		}
 		campLine2 := []Widget{
 			CheckBox{
 				AssignTo:  &alp.CampSardinianEmpire,
 				Text:      "撒丁帝国",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.CampNorthernParliament,
 				Text:      "北方联合",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.CampIrisTheLiberty,
 				Text:      "自由鸢尾",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.CampCuriaOfVichya,
 				Text:      "维希教廷",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			}, CheckBox{
 				AssignTo:  &alp.CampOther,
 				Text:      "其他",
-				OnClicked: alp.Tech,
+				OnClicked: alp.TechQuery,
 			},
 		}
 		campGroup := GroupBox{
@@ -351,9 +400,62 @@ func getAzureLaneBox(alp *AzureLanePanel) GroupBox {
 				},
 			},
 		}
+		techLine1 := []Widget{
+			CheckBox{
+				AssignTo:  &alp.TechFill,
+				Text:      "装填",
+				OnClicked: alp.TechQuery,
+			}, CheckBox{
+				AssignTo:  &alp.TechHit,
+				Text:      "命中",
+				OnClicked: alp.TechQuery,
+			}, CheckBox{
+				AssignTo:  &alp.TechBombard,
+				Text:      "炮击",
+				OnClicked: alp.TechQuery,
+			}, CheckBox{
+				AssignTo:  &alp.TechAviation,
+				Text:      "航空",
+				OnClicked: alp.TechQuery,
+			}, CheckBox{
+				AssignTo:  &alp.TechMotorized,
+				Text:      "机动",
+				OnClicked: alp.TechQuery,
+			},
+		}
+		techLine2 := []Widget{
+			CheckBox{
+				AssignTo:  &alp.TechThunder,
+				Text:      "雷击",
+				OnClicked: alp.TechQuery,
+			}, CheckBox{
+				AssignTo:  &alp.TechAirDefence,
+				Text:      "防空",
+				OnClicked: alp.TechQuery,
+			}, CheckBox{
+				AssignTo:  &alp.TechLasting,
+				Text:      "耐久",
+				OnClicked: alp.TechQuery,
+			}, CheckBox{
+				AssignTo:  &alp.TechAntisubmarine,
+				Text:      "反潜",
+				OnClicked: alp.TechQuery,
+			},
+		}
+		techGroup := GroupBox{
+			Layout: VBox{}, Title: "科技点",
+			Children: []Widget{
+				Composite{
+					MaxSize: Size{Height: 24}, Layout: HBox{}, Children: techLine1,
+				},
+				Composite{
+					MaxSize: Size{Height: 24}, Layout: HBox{}, Children: techLine2,
+				},
+			},
+		}
 		azureLaneBox = GroupBox{
 			Layout: VBox{}, Title: "碧蓝航线科技点",
-			Children: []Widget{typeGroup, rarityGroup, campGroup},
+			Children: []Widget{typeGroup, rarityGroup, campGroup, techGroup},
 		}
 	})
 
