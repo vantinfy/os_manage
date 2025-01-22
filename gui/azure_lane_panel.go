@@ -7,6 +7,8 @@ import (
 	"github.com/lxn/win"
 	"os_manage/azur_lane"
 	"os_manage/log"
+	"reflect"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -78,6 +80,9 @@ type AzureLanePanel struct {
 	TechAirDefence    *walk.CheckBox // 防空
 	TechLasting       *walk.CheckBox // 耐久
 	TechAntisubmarine *walk.CheckBox // 反潜
+
+	tbView    *walk.TableView
+	shipModel *ShipsModel
 }
 
 func (p *AzureLanePanel) Types() string {
@@ -173,7 +178,7 @@ func (p *AzureLanePanel) Camp() string {
 		rarities = append(rarities, "'维希教廷'")
 	}
 	if p.CampOther.Checked() {
-		rarities = append(rarities, "") // todo
+		rarities = append(rarities, "'飓风', '其他', 'META-???,其他'")
 	}
 
 	if len(rarities) > 0 {
@@ -247,10 +252,46 @@ func (p *AzureLanePanel) TechQuery() {
 		return
 	}
 	log.Debug("count", len(resp))
-	for _, ship := range resp {
-		log.Debug(ship.Name, ship.Type, ship.Camp, ship.Rarity, ship.TechPoint)
-		break
+	if p.shipModel != nil {
+		shipList := make([]shipItem, 0)
+		for _, ship := range resp {
+			shipList = append(shipList, shipItem{Ship: ship})
+		}
+
+		p.shipModel.items = shipList
+		p.shipModel.PublishRowsReset()
+
+		_ = p.shipModel.Sort(p.shipModel.sortColumn, p.shipModel.sortOrder)
 	}
+}
+
+func (p *AzureLanePanel) ResetSelect() {
+	pType := reflect.TypeOf(*p)
+	vType := reflect.ValueOf(*p)
+	checkBox := &walk.CheckBox{}
+	// 所有复选框置否
+	for i := 0; i < pType.NumField(); i++ {
+		if pType.Field(i).Type == reflect.TypeOf(checkBox) {
+			if !vType.Field(i).IsZero() {
+				checkMethod := vType.Field(i).MethodByName("SetChecked")
+				if checkMethod.IsValid() {
+					checkMethod.Call([]reflect.Value{reflect.ValueOf(false)})
+				}
+			}
+		}
+	}
+
+	// 清空所有船
+	p.shipModel.items = make([]shipItem, 0)
+	p.shipModel.PublishRowsReset()
+}
+
+func (p *AzureLanePanel) UpdateShips() {
+	err := azur_lane.GetAllShips()
+	if err != nil {
+		log.Error(err)
+	}
+	log.Info("舰船数据更新完成")
 }
 
 func getAzureLaneBox(alp *AzureLanePanel) GroupBox {
@@ -464,21 +505,43 @@ func getAzureLaneBox(alp *AzureLanePanel) GroupBox {
 
 func OpenAzureLanePanel() {
 	if azureLanePanel == nil {
-		azureLanePanel = &AzureLanePanel{}
+		azureLanePanel = &AzureLanePanel{
+			shipModel: &ShipsModel{},
+		}
 		err := MainWindow{
-			AssignTo: &azureLanePanel.MainWindow, Size: Size{Width: 560, Height: 370},
+			AssignTo: &azureLanePanel.MainWindow, Size: Size{Width: 720, Height: 560},
 			Layout: VBox{}, Title: "碧蓝航线科技",
 			Children: []Widget{
 				getAzureLaneBox(azureLanePanel),
 				Composite{
 					Layout: HBox{},
 					Children: []Widget{
-						PushButton{Text: "重置"},        // todo reset
-						PushButton{Text: "更新版本船数据"},   // todo 更新版本船数据
+						PushButton{Text: "重置", OnClicked: azureLanePanel.ResetSelect},
+						PushButton{Text: "更新版本船数据", OnClicked: azureLanePanel.UpdateShips},
 						PushButton{Text: "过滤已120级的船"}, // todo 120级船记录过滤
-					},
+					}, // todo 逆转日志文本区 快捷键 便签
 				},
-				Composite{}, // todo 结果显示
+				TableView{
+					AssignTo:         &azureLanePanel.tbView,
+					AlternatingRowBG: true,
+					ColumnsOrderable: true,
+					CheckBoxes:       true,
+					MultiSelection:   true,
+					Columns: []TableViewColumn{
+						{Name: "Name", DataMember: "名称"},
+						//{Name: "Avatar", DataMember: "头像"},
+						{Name: "Type", DataMember: "类型"},
+						{Name: "TechPoint", DataMember: "科技点"},
+						{Name: "Camp", DataMember: "阵营"},
+						{Name: "Rarity", DataMember: "稀有度"},
+						{Name: "MindCost", DataMember: "120级消耗心智Ⅰ"},
+						{Name: "TechPerMind", DataMember: "科技点/心智Ⅰ"},
+					},
+					Model: azureLanePanel.shipModel,
+					OnSelectedIndexesChanged: func() {
+						fmt.Printf("SelectedIndexes: %v\n", azureLanePanel.tbView.SelectedIndexes())
+					},
+				}, // 结果显示
 			},
 		}.Create()
 		if err != nil {
@@ -497,4 +560,129 @@ func OpenAzureLanePanel() {
 	}
 
 	azureLanePanel.Show()
+}
+
+type ShipsModel struct {
+	walk.TableModelBase
+	walk.SorterBase
+	sortColumn int
+	sortOrder  walk.SortOrder
+
+	items []shipItem
+}
+
+type shipItem struct {
+	azur_lane.Ship
+	checked bool
+}
+
+func (m *ShipsModel) Items() any {
+	return m.items
+}
+
+func (m *ShipsModel) RowCount() int {
+	return len(m.items)
+}
+
+func (m *ShipsModel) Value(row, col int) interface{} {
+	item := m.items[row]
+
+	switch col {
+	case 0:
+		return item.Name
+
+	//case 1:
+	//	return item.Avatar
+
+	case 1:
+		return item.Type
+
+	case 2:
+		return item.TechPoint
+
+	case 3:
+		return item.Camp
+
+	case 4:
+		return item.Rarity
+
+	case 5:
+		return item.MindCost
+
+	case 6:
+		return fmt.Sprintf("%.6f", item.TechPerMind)
+	}
+
+	panic("unexpected col")
+}
+
+func (m *ShipsModel) Checked(row int) bool {
+	return m.items[row].checked
+}
+
+func (m *ShipsModel) SetChecked(row int, checked bool) error {
+	m.items[row].checked = checked
+
+	return nil
+}
+
+func (m *ShipsModel) Sort(col int, order walk.SortOrder) error {
+	m.sortColumn, m.sortOrder = col, order
+
+	sort.SliceStable(m.items, func(i, j int) bool {
+		a, b := m.items[i], m.items[j]
+
+		c := func(ls bool) bool {
+			if m.sortOrder == walk.SortAscending {
+				return ls
+			}
+
+			return !ls
+		}
+
+		switch m.sortColumn {
+		case 0:
+			return c(a.Name < b.Name)
+
+		//case 1:
+		//	return c(a.Avatar < b.Avatar)
+
+		case 1:
+			if len(a.Type) == len(b.Type) {
+				for k := 0; k < len(a.Type); k++ {
+					if a.Type[k] != b.Type[k] {
+						return c(a.Type[k] < b.Type[k])
+					}
+				}
+			}
+			return false
+
+		case 2:
+			if len(a.TechPoint) == len(b.TechPoint) {
+				for k := 0; k < len(a.TechPoint); k++ {
+					if a.TechPoint[k] != b.TechPoint[k] {
+						return c(a.TechPoint[k] < b.TechPoint[k])
+					}
+				}
+			}
+			return false
+
+		case 3:
+			return c(a.Camp < b.Camp)
+
+		case 4:
+			return c(a.Rarity < b.Rarity)
+
+		case 5:
+			return c(a.MindCost < b.MindCost)
+
+		case 6:
+			return c(fmt.Sprintf("%.6f", a.TechPerMind) < fmt.Sprintf("%.6f", b.TechPerMind))
+
+		}
+
+		panic("unreachable")
+	})
+
+	return m.SorterBase.Sort(col, order)
 }
