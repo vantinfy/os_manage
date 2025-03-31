@@ -45,7 +45,8 @@ func init() {
     file_drop TEXT,                               -- 档案掉落点，存储为JSON字符串
     activity_drop TEXT,                           -- 活动掉落点，存储为JSON字符串
     cute TEXT,                                    -- 默认Q版立绘
-	tech_per_mind REAL                         	  -- 每一点心智一提升多少科技点 越高越好
+	tech_per_mind REAL,                           -- 每一点心智一提升多少科技点 越高越好
+	has_120 BOOLEAN                         	  -- 每一点心智一提升多少科技点 越高越好
 );`, TableShip)
 	_, err = db.Exec(createTableSQL)
 	if err != nil {
@@ -79,9 +80,9 @@ func InsertShipData(db *sql.DB, ships map[string]Ship) error {
             INSERT OR IGNORE INTO %s (
                 name, avatar, clothing, type, tech_point_count, 
                 tech_point_camp, tech_point, rarity, mind_cost, camp, construct_time, 
-                install_date, transform_date, ordinary_drop, file_drop, activity_drop, cute, tech_per_mind
+                install_date, transform_date, ordinary_drop, file_drop, activity_drop, cute, tech_per_mind, has_120
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )`, TableShip)
 
 		// 执行插入操作
@@ -104,6 +105,7 @@ func InsertShipData(db *sql.DB, ships map[string]Ship) error {
 			string(activityDropJSON),
 			ship.Cute,
 			ship.TechPerMind,
+			ship.Has120,
 		)
 		if err != nil {
 			return err
@@ -177,6 +179,7 @@ retry:
 			&activityDropJSON,
 			&ship.Cute,
 			&ship.TechPerMind,
+			&ship.Has120,
 		)
 		if err != nil {
 			return nil, err

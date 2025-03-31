@@ -4,3 +4,6 @@ vnc/
 .idea/
 .vscode/
 config.toml
+ships.db
+ships.json
+wiki.html

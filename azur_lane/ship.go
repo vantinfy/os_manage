@@ -35,6 +35,7 @@ type Ship struct {
 	ActivityDrop   []string `json:"activity_drop"`    // 获取方式-活动掉落点
 	Cute           string   `json:"cute"`             // 默认Q版立绘
 	TechPerMind    float64  `json:"tech_per_mind"`    // 每一点心智一提升多少科技点 越高越好
+	Has120         bool     `json:"has_120"`          // 该船已经练到120级
 }
 
 const (
