@@ -35,6 +35,9 @@ var (
 			{4, 0, 2},
 		},
 	}
+
+	filter120, filterBtnText, selectText = "", "过滤掉120级的船", "全选"
+	filterFlag, selectAllFlag            = false, false
 )
 
 type AzureLanePanel struct {
@@ -83,6 +86,9 @@ type AzureLanePanel struct {
 
 	tbView    *walk.TableView
 	shipModel *ShipsModel
+
+	Filter120Btn *walk.PushButton
+	SelectAllBtn *walk.PushButton
 }
 
 func (p *AzureLanePanel) Types() string {
@@ -239,6 +245,9 @@ func (p *AzureLanePanel) TechQuery() {
 	if p.Teches() != "" {
 		conditions = append(conditions, p.Teches())
 	}
+	if filter120 != "" {
+		conditions = append(conditions, filter120)
+	}
 	where := strings.Join(conditions, " and ")
 	if where != "" {
 		sql += " where " + where
@@ -292,6 +301,77 @@ func (p *AzureLanePanel) UpdateShips() {
 		log.Error(err)
 	}
 	log.Info("舰船数据更新完成")
+}
+
+func (p *AzureLanePanel) Filter120() {
+	filterFlag = !filterFlag
+	if filterFlag {
+		filterBtnText = "不过滤120级的船"
+		filter120 = "has_120 = 0"
+	} else {
+		filterBtnText = "过滤掉120级的船"
+		filter120 = ""
+	}
+	p.Filter120Btn.SetText(filterBtnText)
+	p.TechQuery()
+}
+
+func (p *AzureLanePanel) SelectAll() {
+	selectAllFlag = !selectAllFlag
+	if selectAllFlag {
+		p.SelectAllBtn.SetText("全不选")
+	} else {
+		p.SelectAllBtn.SetText("全选")
+	}
+
+	for i, _ := range p.shipModel.items {
+		p.shipModel.SetChecked(i, selectAllFlag)
+		p.shipModel.PublishRowsReset()
+	}
+}
+
+func (p *AzureLanePanel) Set120() {
+	p.setting120(1)
+}
+
+func (p *AzureLanePanel) Unset120() {
+	p.setting120(0)
+}
+
+func (p *AzureLanePanel) setting120(v int) {
+	var updateList []string      // 加了引号的船名 用于db
+	var cacheUpdateList []string // 原本船名
+	var updateMap = make(map[string]*azur_lane.Ship)
+	for _, item := range p.shipModel.items {
+		if item.checked {
+			updateList = append(updateList, `'`+item.Name+`'`)
+			cacheUpdateList = append(cacheUpdateList, item.Name)
+			updateMap[item.Name] = &item.Ship
+		}
+	}
+
+	if len(updateList) > 0 {
+		// 更新缓存
+		cache, err := azur_lane.NewCache(azur_lane.CacheName)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		for _, shipName := range cacheUpdateList {
+			cache.Set(shipName, updateMap[shipName])
+		}
+		cache.Save() // 退出程序时再保存也行
+
+		// 更新db
+		updateSql := fmt.Sprintf("update %s set has_120=%d where name in (%s)", azur_lane.TableShip, v, strings.Join(updateList, ", "))
+		log.Debug(updateSql)
+		err = azur_lane.UpdateShips(updateSql)
+		if err != nil {
+			log.Error(err)
+		}
+
+		p.TechQuery()
+	}
 }
 
 func getAzureLaneBox(alp *AzureLanePanel) GroupBox {
@@ -518,8 +598,16 @@ func OpenAzureLanePanel() {
 					Children: []Widget{
 						PushButton{Text: "重置", OnClicked: azureLanePanel.ResetSelect},
 						PushButton{Text: "更新版本船数据", OnClicked: azureLanePanel.UpdateShips},
-						PushButton{Text: "过滤已120级的船"}, // todo 120级船记录过滤
+						PushButton{Text: filterBtnText, OnClicked: azureLanePanel.Filter120, AssignTo: &azureLanePanel.Filter120Btn},
 					}, // todo 逆转日志文本区 快捷键 便签
+				},
+				Composite{
+					Layout: HBox{},
+					Children: []Widget{
+						PushButton{Text: selectText, OnClicked: azureLanePanel.SelectAll, AssignTo: &azureLanePanel.SelectAllBtn},
+						PushButton{Text: "设置已120级", OnClicked: azureLanePanel.Set120},
+						PushButton{Text: "设置未120级", OnClicked: azureLanePanel.Unset120},
+					},
 				},
 				TableView{
 					AssignTo:         &azureLanePanel.tbView,

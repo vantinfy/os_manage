@@ -219,3 +219,14 @@ retry:
 
 	return ships, nil
 }
+
+func UpdateShips(updateSql string) error {
+	db, err := database.GetDB(LocalDBName)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec(updateSql)
+	return err
+}
